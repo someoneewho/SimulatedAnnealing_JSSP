@@ -1,0 +1,755 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+% -------------------------
+% BIBLIOGRAPHY (BibTeX) SETUP
+% -------------------------
+\usepackage[round]{natbib}
+\bibliographystyle{apalike}
+
+% Clickable links
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+% Page style
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\fancyhead[L]{CSE480/591 - Optimization with Metaheuristics}
+\fancyhead[R]{Yeditepe University}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\setstretch{1.2}
+
+\begin{document}
+
+% -------------------------
+% TITLE PAGE
+% -------------------------
+\begin{titlepage}
+    \centering
+    \includegraphics[width=0.5\textwidth]{yeditepe_logo.png}\\[1cm]
+    {\Large \textbf{YEDITEPE UNIVERSITY}}\\[4pt]
+    {\large Faculty of Engineering}\\[2pt]
+    {\large Department of Computer Engineering}\\[2cm]
+    {\huge \textbf{Term Project Report}}\\[0.4cm]
+    {\Large CSE480/586: Algorithms and Operation Research}\\[1cm]
+    \vfill
+    \begin{flushleft}
+    \textbf{Members:} Hande Nur Y{\i}lmaz, Mustafa Alp Y{\i}lmaz, Ahsen Bet\"{u}l Sar{\i}\c{c}i\c{c}ek\\[8pt]
+    \textbf{Team ID:} Team 8\\[8pt]
+    \textbf{Date:} 07 June 2026\\[8pt]
+    \textbf{Project Title:} Job Shop Scheduling Problem Optimization\\[2cm]
+    \end{flushleft}
+    \vfill
+    {\large \textbf{Instructor:} Asst. Prof. Dr. Gizem S\"{u}ng\"{u} Terci}\\[0.3cm]
+    {\large Spring 2026 Semester}\\[1cm]
+\end{titlepage}
+
+\newpage
+
+% -------------------------
+% MAIN CONTENT
+% -------------------------
+
+\section{Introduction}
+The Job Shop Scheduling Problem (JSSP) is a combinatorial optimization problem that involves scheduling a set of jobs on a set of machines where each job must be processed through a specific sequence of operations on different machines. Each operation requires a specific machine for a predetermined amount of time, and each machine can process only one operation at a time.
+
+The JSSP is classified as an NP-hard problem, meaning that finding an optimal solution becomes computationally intractable as the problem size increases. This complexity arises from the factorial growth in the number of possible schedules as the number of jobs and machines increases. For example, a problem with $n$ jobs and $m$ machines can have up to $(n!)^m$ possible schedules.
+
+JSSP has significant practical relevance in manufacturing systems, production planning, and resource allocation, where efficient scheduling directly impacts cost and throughput.
+
+The primary objective in most JSSP variants is to minimize the makespan, which is the total time required to complete all jobs. Reducing the makespan leads to increased productivity, better resource utilization, reduced operational costs, and improved customer satisfaction through faster delivery times. Given its practical importance and computational complexity, the JSSP continues to be an active area of research in both academia and industry.
+
+\section{Formal Problem Definition}
+
+The Job Shop Scheduling Problem can be formally defined using the following parameters and components:
+\begin{itemize}
+    \item $n$ = number of jobs to be scheduled
+    \item $m$ = number of machines available
+    \item $J = \{J_1, J_2, \ldots, J_n\}$ = set of jobs
+    \item $M = \{M_1, M_2, \ldots, M_m\}$ = set of machines
+    \item $O_{ij}$ = operation $i$ of job $j$
+    \item $p_{ij}$ = processing time of operation $O_{ij}$
+    \item $m_{ij}$ = machine required to process operation $O_{ij}$
+    \item $s_{ij}$ = starting time of operation $O_{ij}$
+    \item $C_{ij}$ = completion time of operation $O_{ij}$
+    \item $C_{\max}$ = makespan (maximum completion time among all jobs)
+\end{itemize}
+
+% ============================================================
+% FIX: Decision variables corrected
+% ============================================================
+\subsection{Decision Variables}
+
+The decision variables are the starting times $s_{ij}$ for each operation $O_{ij}$. These determine when each operation begins on its assigned machine and, together with the precedence and machine capacity constraints, fully define the schedule. In the operation-based permutation encoding used by our metaheuristic, the decision is equivalently represented as the ordering of operations within the permutation vector.
+
+\subsection{Objective Function}
+
+The primary objective is to minimize the makespan $C_{\max}$:
+
+\[
+\text{Minimize } C_{\max}
+\]
+
+where $C_{\max}$ represents the maximum completion time among all jobs:
+
+\[
+C_{\max} = \max_{j=1,\ldots,n} \{C_j\}
+\]
+
+Here, $C_j$ denotes the completion time of the last operation of job $j$.
+
+
+\subsection{Constraints}
+
+The problem must satisfy the following constraints:
+
+\textbf{1. Precedence Constraints:} Operations within the same job must be processed in their predetermined order. For each job $j$ and consecutive operations $i$ and $i+1$:
+\[
+s_{i+1,j} \geq s_{ij} + p_{ij}
+\]
+This ensures that operation $(i+1)$ of job $j$ can only start after operation $i$ of job $j$ is completed.
+
+\textbf{2. Machine Capacity Constraints:} Each machine can process at most one operation at a time. For any two operations $O_{ij}$ and $O_{k\ell}$ that require the same machine:
+\[
+s_{k\ell} \geq s_{ij} + p_{ij} \quad \text{or} \quad s_{ij} \geq s_{k\ell} + p_{k\ell}
+\]
+This ensures operations on the same machine do not overlap in time.
+
+\textbf{3. Makespan Definition:} The makespan equals the maximum completion time among all jobs:
+\[
+C_{\max} \geq C_j \quad \forall j \in \{1, \ldots, n\}
+\]
+where $C_j$ is the completion time of job $j$ (i.e., the completion time of its last operation).
+
+
+
+\textbf{4. Non-negativity:} All starting times must be non-negative:
+\[
+s_{ij} \geq 0 \quad \forall i,j
+\]
+
+\section{Dataset or Benchmark Instances}
+
+For this project, we will use Demirkol's benchmark instances, which are well-established in the job shop scheduling research community. These instances were introduced by \cite{DEMIRKOL1998137} and have been widely used to evaluate the performance of scheduling algorithms.
+
+\subsection{Benchmark Description}
+
+This benchmark set consists of 80 problem instances with varying characteristics:
+
+\begin{itemize}
+    \item \textbf{Problem Sizes:} The instances range from small to large scale problems
+    \begin{itemize}
+        \item Small: 20 jobs $\times$ 15 machines, 20 jobs $\times$ 20 machines
+        \item Medium: 30 jobs $\times$ 15 machines, 30 jobs $\times$ 20 machines
+        \item Large: 40 jobs $\times$ 15 machines, 40 jobs $\times$ 20 machines
+        \item Extra-large: 50 jobs $\times$ 15 machines, 50 jobs $\times$ 20 machines
+    \end{itemize}
+    
+    \item \textbf{Instance Types:} Two main categories based on objective function
+    \begin{itemize}
+        \item \texttt{rcmax}: Regular completion time maximization problems (instances 1--40)
+        \item \texttt{cscmax}: Customer service completion maximization problems (instances 41--80)
+    \end{itemize}
+\end{itemize}
+
+\subsection{Instance File Format}
+
+Each benchmark instance file contains the problem data in the following format:
+
+\begin{itemize}
+\item First line: number of jobs ($n$) and number of machines ($m$)
+\item Following lines: For each job, the sequence of operations with their machine assignments and processing times
+\item Format per operation: (machine\_id, processing\_time) pairs
+\end{itemize}
+
+\clearpage
+\subsection{Selected Instances for This Project}
+
+We have selected the following instances for our experimental study:
+
+\begin{table}[h]
+\centering
+\scriptsize
+\begin{tabular}{|l|l|c|c|}
+\hline
+\textbf{ID} & \textbf{Full Instance Filename} & \textbf{Size ($n \times m$)} & \textbf{Type} \\
+\hline
+\multicolumn{4}{|c|}{\textbf{Set A: 20-Job Instances}} \\
+\hline
+Dmu01 & Dmu01\_rcmax\_20\_15\_4.txt & 20$\times$15 & rcmax \\
+Dmu02 & Dmu02\_rcmax\_20\_15\_10.txt & 20$\times$15 & rcmax \\
+Dmu03 & Dmu03\_rcmax\_20\_15\_5.txt & 20$\times$15 & rcmax \\
+Dmu04 & Dmu04\_rcmax\_20\_15\_8.txt & 20$\times$15 & rcmax \\
+Dmu05 & Dmu05\_rcmax\_20\_15\_1.txt & 20$\times$15 & rcmax \\
+Dmu06 & Dmu06\_rcmax\_20\_20\_6.txt & 20$\times$20 & rcmax \\
+Dmu07 & Dmu07\_rcmax\_20\_20\_4.txt & 20$\times$20 & rcmax \\
+Dmu08 & Dmu08\_rcmax\_20\_20\_7.txt & 20$\times$20 & rcmax \\
+Dmu09 & Dmu09\_rcmax\_20\_20\_8.txt & 20$\times$20 & rcmax \\
+Dmu10 & Dmu10\_rcmax\_20\_20\_5.txt & 20$\times$20 & rcmax \\
+\hline
+\multicolumn{4}{|c|}{\textbf{Set B: 30-Job Instances (rcmax)}} \\
+\hline
+Dmu11 & Dmu11\_rcmax\_30\_15\_9.txt & 30$\times$15 & rcmax \\
+Dmu12 & Dmu12\_rcmax\_30\_15\_10.txt & 30$\times$15 & rcmax \\
+Dmu13 & Dmu13\_rcmax\_30\_15\_5.txt & 30$\times$15 & rcmax \\
+Dmu14 & Dmu14\_rcmax\_30\_15\_4.txt & 30$\times$15 & rcmax \\
+Dmu15 & Dmu15\_rcmax\_30\_15\_1.txt & 30$\times$15 & rcmax \\
+Dmu16 & Dmu16\_rcmax\_30\_20\_7.txt & 30$\times$20 & rcmax \\
+Dmu17 & Dmu17\_rcmax\_30\_20\_10.txt & 30$\times$20 & rcmax \\
+Dmu18 & Dmu18\_rcmax\_30\_20\_9.txt & 30$\times$20 & rcmax \\
+Dmu19 & Dmu19\_rcmax\_30\_20\_8.txt & 30$\times$20 & rcmax \\
+Dmu20 & Dmu20\_rcmax\_30\_20\_2.txt & 30$\times$20 & rcmax \\
+\hline
+\multicolumn{4}{|c|}{\textbf{Set C: 30-Job Instances (cscmax)}} \\
+\hline
+Dmu51 & Dmu51\_cscmax\_30\_15\_2.txt & 30$\times$15 & cscmax \\
+Dmu52 & Dmu52\_cscmax\_30\_15\_9.txt & 30$\times$15 & cscmax \\
+Dmu53 & Dmu53\_cscmax\_30\_15\_10.txt & 30$\times$15 & cscmax \\
+Dmu54 & Dmu54\_cscmax\_30\_15\_5.txt & 30$\times$15 & cscmax \\
+Dmu55 & Dmu55\_cscmax\_30\_15\_6.txt & 30$\times$15 & cscmax \\
+Dmu56 & Dmu56\_cscmax\_30\_20\_9.txt & 30$\times$20 & cscmax \\
+Dmu57 & Dmu57\_cscmax\_30\_20\_7.txt & 30$\times$20 & cscmax \\
+Dmu58 & Dmu58\_cscmax\_30\_20\_3.txt & 30$\times$20 & cscmax \\
+Dmu59 & Dmu59\_cscmax\_30\_20\_6.txt & 30$\times$20 & cscmax \\
+Dmu60 & Dmu60\_cscmax\_30\_20\_4.txt & 30$\times$20 & cscmax \\
+\hline
+\end{tabular}
+\caption{Selected 30 instances from the Demirkol set, mapping official IDs to actual filenames.}
+\label{tab:final_mapping}
+\end{table}
+
+\subsection{Selection Strategy}
+We selected a diverse set of problems to test how our algorithm handles different scales and structures. Our selection includes 10 instances with 20 jobs and 20 instances with 30 jobs. The 20-job instances act as a starting point to measure basic performance on medium-sized problems, which involve about 300 to 400 total operations. The 30-job instances are the main focus, designed to challenge the algorithm with much larger search spaces. We divided these 30-job problems into two types, \textit{cscmax} and \textit{rcmax}, to see how the algorithm performs when the data is distributed differently.
+
+\subsection{Justification of Diversity and Complexity}
+Using both \textit{cscmax} and \textit{rcmax} types for the 30-job problems is important for testing the robustness of our approach. Even when the number of jobs and machines is the same, the processing times and sequences in these two sets follow different patterns. By testing both, we can prove whether our proposed algorithm can find high-quality solutions regardless of whether the data is purely random or contains specific bottlenecks. This variety ensures our results are reliable across different types of scheduling scenarios.
+
+The difficulty of these problems grows exponentially as we add more jobs. In our mathematical model, a 30-job problem requires the algorithm to decide the order of jobs using $n(n-1)/2 = 435$ binary variables for every machine. This creates a significantly more complex search space than the 20-job version, which only requires 190 variables per machine. By choosing 30-job problems for the majority of our tests, we are putting our algorithm through a careful evaluation to see if it can effectively navigate very large and difficult optimization environments.
+
+\section{Example Scenario/Problem Instance}
+In this section, we provide a detailed look at a specific problem instance to illustrate the operational constraints and the complexity of the Job Shop Scheduling Problem (JSSP). We utilize the \texttt{cscmax\_20\_15\_1.txt} instance from our dataset as a representative example.
+
+\subsection{Instance Overview}
+The selected instance consists of $n = 20$ jobs and $m = 15$ machines. This results in a total of $20 \times 15 = 300$ distinct operations that must be scheduled. Each job has a unique sequence (the order of machines it must visit) and specific processing times for each operation.
+
+\subsection{Data Representation}
+To understand the underlying data structure, we examine the first job (\textit{Job 1}) of the instance. The raw data for Job 1 is provided as follows:
+\begin{quote}
+    \texttt{6 105 \quad 5 16 \quad 0 48 \quad 3 114 \quad 1 54 \quad 2 90 \quad  4 159 \quad  13 133 \quad  10 65 \quad 14 153 \quad 8 146 \quad  9 28 \quad  11 15 \quad  12 41 \quad  7 141 \quad }
+\end{quote}
+
+This numerical sequence is interpreted as a set of ordered pairs $(M_j, P_j)$, where $M_j$ represents the machine ID and $P_j$ represents the processing time:
+\begin{itemize}
+    \item \textbf{Operation 1:} Must be processed on \textbf{Machine 6} for \textbf{105} time units.
+    \item \textbf{Operation 2:} Must be processed on \textbf{Machine 5} for \textbf{16} time units.
+    \item \textbf{Operation 3:} Must be processed on \textbf{Machine 0} for \textbf{48} time units.
+    \item \textbf{Operation 4:} Must be processed on \textbf{Machine 3} for \textbf{114} time units.
+    \item \textbf{Operation 5:} Must be processed on \textbf{Machine 1} for \textbf{54} time units.
+    \item \textbf{Operation 6:} Must be processed on \textbf{Machine 2} for \textbf{90} time units.
+    \item \textbf{Operation 7:} Must be processed on \textbf{Machine 4} for \textbf{159} time units.
+    \item \textbf{Operation 8:} Must be processed on \textbf{Machine 13} for \textbf{133} time units.
+    \item \textbf{Operation 9:} Must be processed on \textbf{Machine 10} for \textbf{65} time units.
+    \item \textbf{Operation 10:} Must be processed on \textbf{Machine 14} for \textbf{153} time units.
+    \item \textbf{Operation 11:} Must be processed on \textbf{Machine 8} for \textbf{146} time units.
+    \item \textbf{Operation 12:} Must be processed on \textbf{Machine 9} for \textbf{28} time units.
+    \item \textbf{Operation 13:} Must be processed on \textbf{Machine 11} for \textbf{15} time units.
+    \item \textbf{Operation 14:} Must be processed on \textbf{Machine 12} for \textbf{41} time units.
+    \item \textbf{Operation 15:} Must be processed on \textbf{Machine 7} for \textbf{141} time units.
+\end{itemize}
+
+    This instance is representative for several reasons. First, with 20 jobs and 15 machines yielding 300 total operations, it occupies the boundary between tractable and challenging problem sizes, making it useful for validating algorithm correctness before scaling up. Second, the sequence of Job 1 alone spans all 15 machines in a non-trivial, non-sequential order, which is characteristic of real-world manufacturing environments where routing is dictated by process requirements rather than machine proximity. Third, the wide variation in processing times, ranging from as low as 15 time units (Machine 11) to as high as 159 time units (Machine 4) creates pronounced machine bottlenecks, a feature common to both the rcmax and cscmax instances.
+
+\subsection{Objective and Complexity}
+The primary objective for this $20 \times 15$ instance is to minimize the \textbf{Makespan ($C_{max}$)}, which is the total time required to complete all 300 operations. Although this might appear manageable at first glance, a closer mathematical inspection reveals a high-dimensional combinatorial problem.
+
+Each of the 15 machines requires resolving $n(n-1)/2 = 190$ binary precedence decisions. When considering all machines, the theoretical search space expands to $(20!)^{15}$ possible permutations. Even this baseline instance therefore presents a significant computational challenge, necessitating the robust metaheuristic approach we have implemented. Furthermore, the wide variation in processing times (e.g., 15 vs 159 units) introduces stochastic bottlenecks, testing the algorithm's ability to efficiently manage machine idle times.
+
+% ============================================================
+% SECTION 5: PROPOSED APPROACH (SA) — UPDATED
+% ============================================================
+\section{Proposed Approach}
+
+\subsection{Overview Design and General Algorithm}
+Simulated Annealing (SA) is a stochastic metaheuristic optimization algorithm inspired by the annealing process in metallurgy \citep{kirkpatrick1983}, where a material is heated and then slowly cooled to alter its physical properties and minimize its internal energy. In the context of combinatorial optimization, the energy state corresponds to the fitness value of a solution, and the temperature acts as a control parameter that dictates the probability of accepting worse solutions to escape local optima.
+
+Unlike standard local search algorithms that only accept strictly improving moves, SA allows the exploration of suboptimal regions of the search space. Early in the search process, when the temperature is high, the algorithm possesses a higher probability of accepting worse solutions, promoting exploration. As the temperature systematically decreases according to a cooling schedule, the algorithm transitions into an exploitation phase, focusing on refining solutions in promising regions.
+
+Algorithm 1 outlines the comprehensive structure of the proposed Simulated Annealing algorithm applied to the JSSP with the primary goal of minimizing the makespan $C_{max}$.
+
+% ============================================================
+% FIX: Pseudocode — line 10 corrected (s ← s')
+% ============================================================
+\begin{algorithm}[H]
+\caption{Simulated Annealing for JSSP}
+\label{alg:simulated_annealing}
+\begin{algorithmic}[1]
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\REQUIRE $n$ jobs, $m$ machines, processing times $p_{ij}$, initial temperature $T_0$, cooling rate $\alpha$, termination temperature $T_{min}$, Markov chain length ($L$)
+\ENSURE Best permutation $s^*$ and its makespan $C_{max}$
+
+\STATE Generate a random initial solution $s$;
+\STATE Evaluate its makespan $f(s)$ and set it as the current and best: $s^* \leftarrow s$;
+\STATE Initialize temperature $T \leftarrow T_0$;
+
+\WHILE{$T > T_{min}$}
+    \FOR{iteration = 1 to $L$}
+        \STATE Generate a random swap neighbor $s'$ of $s$;
+        \STATE Evaluate its makespan $f(s')$;
+        \STATE $\Delta E \leftarrow f(s') - f(s)$;
+        
+        \IF{$\Delta E \le 0$}
+            \STATE $s \leftarrow s'$; \COMMENT{Accept better solution}
+            \IF{$f(s') < f(s^*)$}
+                \STATE $s^* \leftarrow s'$; \COMMENT{Update global best}
+            \ENDIF
+        \ELSE
+            \STATE Generate a random number $r$ in range $[0, 1)$;
+            \IF{$r < e^{-\frac{\Delta E}{T}}$}
+                \STATE $s \leftarrow s'$; \COMMENT{Accept worse solution based on Metropolis criterion}
+            \ENDIF
+        \ENDIF
+    \ENDFOR
+    \STATE $T \leftarrow T \times \alpha$; \COMMENT{Cool down the system}
+\ENDWHILE
+
+\RETURN $s^*, f(s^*)$;
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Solution Representation}
+To maintain structural compatibility and ensure valid scheduling configurations, each solution is encoded using an \textit{operation-based permutation} string. In this vector representation, each job ID appears exactly $m$ times, where $m$ is the total number of available machines. The chronological appearance of a job ID from left to right directly maps to the progressive sequence of its operations. For instance, the first time a job index appears, it denotes its first operation; the second appearance represents its subsequent operation, and so forth.
+
+For a representative $20 \times 15$ problem instance, the solution is represented as an array of length $300$:
+\begin{equation}
+s = [7, 15, 2, 5, 2, 16, 12, 8, 1, \dots]
+\end{equation}
+
+This representation is inherently feasible and structurally robust. Because operations for any given job are inherently evaluated in their correct operational sequence, precedence constraints are automatically satisfied without requiring specialized repair mechanisms or penalty functions.
+
+\subsection{Fitness Function}
+The fitness function measures the structural quality of a candidate sequence by computing its total makespan ($C_{max}$), representing the absolute completion time of all jobs. The calculation processes the operation-based permutation from left to right, scheduling each encountered operation dynamically. The earliest feasible start time ($s_{ij}$) for operation $i$ of job $j$ is strictly governed by the completion of its immediate predecessor operation and the availability of its designated machine:
+\begin{equation}
+s_{ij} = \max(\text{job\_ready\_time}_j, \text{machine\_ready\_time}_{m_{ij}})
+\end{equation}
+
+where $\text{job\_ready\_time}_j$ is the timestamp when job $j$ finishes its prior operation, and $\text{machine\_ready\_time}_{m_{ij}}$ is the moment the required machine becomes idle. The operation completion time is subsequently calculated as:
+\begin{equation}
+C_{ij} = s_{ij} + p_{ij}
+\end{equation}
+
+where $p_{ij}$ is the predetermined processing duration. Once all operations are placed within the timeline, the comprehensive makespan is extracted as:
+\begin{equation}
+C_{max} = \max_{j=1,\dots,n} C_j
+\end{equation}
+
+where $C_j$ represents the final completion timestamp of the last operation belonging to job $j$.
+
+\subsection{Neighborhood Structure}
+The neighborhood of an active schedule is explored by applying stochastic swap moves. A neighbor solution ($s'$) is generated by selecting two distinct indices at random within the 300-length permutation vector and interchanging their job values. To prevent redundant computational overhead, the algorithm explicitly ensures that the two selected positions contain different job IDs, as swapping identical values leaves the schedule unchanged.
+
+Unlike full neighborhood evaluation, which requires exploring all $\binom{300}{2} = 44{,}850$ combinations at every step, the Simulated Annealing framework samples a single random neighbor per inner iteration. This keeps the computational cost per transition low, relying on the high speed of individual iterations to sample the solution space effectively.
+
+\subsection{Acceptance Criteria and Cooling Schedule}
+The core mechanisms regulating exploration in our approach are the cooling profile and the \textit{Metropolis acceptance criterion}. At each step, a candidate neighbor $s'$ is evaluated against the current solution $s$. If the move results in a lower or equal makespan ($\Delta E = f(s') - f(s) \le 0$), the transition is immediately approved, and the algorithm moves to $s'$.
+
+If the move yields a worse makespan ($\Delta E > 0$), it is not automatically discarded. Instead, it is accepted probabilistically based on the following equation:
+\begin{equation}
+P(\text{accept}) = e^{-\frac{\Delta E}{T}}
+\end{equation}
+
+where $\Delta E$ represents the performance degradation ($\Delta C_{max}$) and $T$ is the current temperature. A uniform random float $r \in [0, 1)$ is sampled; if $r < P(\text{accept})$, the worse solution is accepted.
+
+The temperature updates systematically following a geometric cooling schedule:
+\begin{equation}
+T_{k+1} = \alpha \cdot T_k
+\end{equation}
+
+where $\alpha$ is a constant cooling coefficient ($0 < \alpha < 1$). The search terminates when the temperature falls below a specified minimum threshold ($T_{min}$).
+
+% ============================================================
+% NEW: T0 Calibration subsection
+% ============================================================
+\subsection{Initial Temperature Calibration}
+Rather than selecting an arbitrary initial temperature, $T_0$ is calibrated for each problem instance so that the initial acceptance probability of a worsening move is approximately 0.8. This follows the standard methodology for SA parameter setting. The calibration procedure samples 500 random worsening moves from a random initial solution, computes the average worsening delta $\overline{\Delta E}$, and solves for $T_0$:
+\begin{equation}
+e^{-\overline{\Delta E} / T_0} = 0.8 \quad \Rightarrow \quad T_0 = \frac{-\overline{\Delta E}}{\ln(0.8)}
+\end{equation}
+
+This ensures that the algorithm begins with a sufficiently high acceptance probability to explore broadly, regardless of the specific scale of the instance's makespan values. For example, on the \texttt{cscmax\_20\_15\_1} instance, this procedure yields $T_0 \approx 643$.
+
+% ============================================================
+% NEW: Example run results
+% ============================================================
+\subsection{Example Run on the Phase 2 Instance}
+To verify the correctness of the implementation, the algorithm was tested on the example instance introduced in Section 4, which is the \texttt{cscmax\_20\_15\_1} instance consisting of 20 jobs and 15 machines, resulting in 300 total operations. The algorithm was run with the improved parameter configuration ($\alpha = 0.97$, $L = 500$, calibrated $T_0 = 643$) using random seed 42.
+
+The initial randomly generated solution had a makespan of 6547 time units. As the search progressed, the algorithm consistently improved the solution. Table~\ref{tab:sa_convergence} shows the best makespan values recorded at regular intervals of function evaluations (FEs).
+
+\begin{table}[H]
+\centering
+\begin{tabular}{cc}
+\toprule
+\textbf{Function Evaluations} & \textbf{Best Makespan} \\
+\midrule
+0       & 6547 \\
+20,000  & 5426 \\
+40,000  & 4947 \\
+60,000  & 4189 \\
+80,000  & 3925 \\
+100,000 & 3825 \\
+120,000 & 3704 \\
+140,000 & 3655 \\
+160,000 & 3635 \\
+182,000 & 3615 \\
+\bottomrule
+\end{tabular}
+\caption{Convergence of SA on the \texttt{cscmax\_20\_15\_1} instance (seed 42, improved config).}
+\label{tab:sa_convergence}
+\end{table}
+
+At the end of 182,000 function evaluations, the best makespan found was 3615 time units, representing an improvement of 2932 time units (a 44.8\% reduction from the initial solution). The total computation time was 13.41 seconds. The solution was verified to satisfy all precedence and machine capacity constraints. These results confirm that the fitness function, solution representation, and algorithm logic are all working correctly.
+
+\newpage
+\section{Experimental Study}
+
+\subsection{Experimental Setup}
+
+\subsubsection{Test Environment}
+All simulations are executed on a laptop configured with an 11th Gen Intel Core i7-11370H processor at 3.30 GHz and 16 GB of RAM, running Windows 10/11 (64-bit). The scheduling pipeline is built entirely using Python 3.14.2 natively, avoiding third-party packages to maximize cross-platform portability. Structural randomization is governed by Python's built-in \texttt{random} module, processing speeds are captured via the \texttt{time} module, and performance statistical aggregation is handled through the \texttt{statistics} package.
+
+% ============================================================
+% UPDATED: Parameter table with T0 calibration
+% ============================================================
+\subsubsection{Parameter Settings}
+To optimize the balance between thorough state-space exploration and localized refinement, the parameters for the Simulated Annealing framework are carefully configured. The initial temperature ($T_0$) is calibrated per instance such that the initial acceptance probability of a worsening move is approximately 0.8. The cooling rate ($\alpha$) follows a gradual geometric reduction profile. The algorithm processes a fixed number of inner iterations (Markov chain length, $L$) at each temperature step before cooling down. Two parameter configurations were tested:
+
+\begin{table}[H]
+\centering
+\caption{Simulated Annealing parameter configurations.}
+\label{tab:sa_parameters}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Parameter} & \textbf{Baseline} & \textbf{Improved} \\
+\midrule
+Initial Temperature ($T_0$) & \multicolumn{2}{c}{Calibrated per instance (target acceptance $\approx 0.8$)} \\
+Cooling Rate ($\alpha$) & 0.95 & 0.97 \\
+Termination Temperature ($T_{min}$) & 0.01 & 0.01 \\
+Markov Chain Length ($L$) & 200 & 500 \\
+Approx.\ Total FEs (20$\times$15) & $\sim$43,000 & $\sim$182,000 \\
+Number of Independent Runs & 5 & 5 \\
+Random Seeds & \multicolumn{2}{c}{42, 123, 456, 789, 1011} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The improved configuration was selected as the primary configuration for the full experimental study. With approximately 182,000 function evaluations per run, it provides a computational budget comparable to other metaheuristic algorithms in the team comparison (e.g., Tabu Search with 1000 iterations $\times$ 200 neighbors $=$ 200,000 FEs).
+
+
+% ============================================================
+% SECTION 6.2: Experimental Results — TEMPLATE
+% Fill in after running all 30 instances
+% ============================================================
+\subsection{Experimental Results}
+
+Table~\ref{tab:results_20job} presents the results for the 10 instances with 20 jobs, and Table~\ref{tab:results_30job} presents the results for the 20 instances with 30 jobs. All results use the improved parameter configuration ($\alpha = 0.97$, $L = 500$). Each instance was run 5 times with different random seeds.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\caption{Experimental results for 20-job instances (improved configuration).}
+\label{tab:results_20job}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Instance} & \textbf{Size} & \textbf{Best Obj.} & \textbf{Mean Obj.} & \textbf{Std Dev} & \textbf{Mean Time (s)} & \textbf{Best Time (s)} \\
+\midrule
+Dmu01 & 20$\times$15 & 2745 & 2793.6 & 28.6 & 8.96 & 8.91 \\
+Dmu02 & 20$\times$15 & 2842 & 2915.2 & 45.9 & 9.44 & 9.01 \\
+Dmu03 & 20$\times$15 & 2899 & 2940.6 & 56.2 & 8.61 & 8.53 \\
+Dmu04 & 20$\times$15 & 2849 & 2887.0 & 56.1 & 8.68 & 8.61 \\
+Dmu05 & 20$\times$15 & 2902 & 2961.8 & 60.5 & 9.04 & 8.97 \\
+Dmu06 & 20$\times$20 & 3463 & 3519.6 & 37.2 & 11.89 & 11.80 \\
+Dmu07 & 20$\times$20 & 3265 & 3295.6 & 39.2 & 11.94 & 11.86 \\
+Dmu08 & 20$\times$20 & 3385 & 3419.2 & 27.3 & 12.04 & 11.91 \\
+Dmu09 & 20$\times$20 & 3328 & 3369.0 & 41.4 & 12.06 & 11.96 \\
+Dmu10 & 20$\times$20 & 3147 & 3226.4 & 54.6 & 11.87 & 11.78 \\
+\midrule
+\multicolumn{2}{l}{\textbf{Average}} & & & 44.7 & 10.45 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\scriptsize
+\caption{Experimental results for 30-job instances (improved configuration).}
+\label{tab:results_30job}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Instance} & \textbf{Size} & \textbf{Best Obj.} & \textbf{Mean Obj.} & \textbf{Std Dev} & \textbf{Mean Time (s)} & \textbf{Best Time (s)} \\
+\midrule
+\multicolumn{7}{l}{\textit{rcmax instances}} \\
+Dmu11 & 30$\times$15 & 3750 & 3815.2 & 80.6 & 12.93 & 12.86 \\
+Dmu12 & 30$\times$15 & 3847 & 3922.8 & 84.6 & 12.87 & 12.73 \\
+Dmu13 & 30$\times$15 & 4010 & 4119.6 & 63.5 & 12.83 & 12.77 \\
+Dmu14 & 30$\times$15 & 3636 & 3697.6 & 58.8 & 13.04 & 12.93 \\
+Dmu15 & 30$\times$15 & 3517 & 3557.0 & 34.3 & 13.01 & 12.97 \\
+Dmu16 & 30$\times$20 & 4113 & 4155.6 & 28.2 & 17.68 & 17.56 \\
+Dmu17 & 30$\times$20 & 4236 & 4300.2 & 40.2 & 17.72 & 17.67 \\
+Dmu18 & 30$\times$20 & 4206 & 4284.4 & 80.0 & 17.52 & 17.48 \\
+Dmu19 & 30$\times$20 & 4188 & 4259.4 & 43.1 & 17.66 & 17.59 \\
+Dmu20 & 30$\times$20 & 4050 & 4128.0 & 67.7 & 17.00 & 16.87 \\
+\midrule
+\multicolumn{2}{l}{\textbf{rcmax Average}} & & & 58.1 & 15.23 & \\
+\midrule
+\multicolumn{7}{l}{\textit{cscmax instances}} \\
+Dmu51 & 30$\times$15 & 5083 & 5151.4 & 103.1 & 13.12 & 12.99 \\
+Dmu52 & 30$\times$15 & 5124 & 5175.8 & 34.0 & 13.53 & 13.26 \\
+Dmu53 & 30$\times$15 & 5278 & 5342.2 & 53.7 & 12.94 & 12.80 \\
+Dmu54 & 30$\times$15 & 5180 & 5252.2 & 61.7 & 13.12 & 13.05 \\
+Dmu55 & 30$\times$15 & 5045 & 5108.6 & 39.5 & 12.77 & 12.71 \\
+Dmu56 & 30$\times$20 & 5900 & 6016.8 & 104.0 & 17.87 & 17.77 \\
+Dmu57 & 30$\times$20 & 5638 & 5709.2 & 68.5 & 18.18 & 17.96 \\
+Dmu58 & 30$\times$20 & 5676 & 5803.0 & 93.9 & 17.80 & 17.55 \\
+Dmu59 & 30$\times$20 & 5514 & 5630.2 & 91.1 & 17.94 & 17.32 \\
+Dmu60 & 30$\times$20 & 5730 & 5841.4 & 91.6 & 17.65 & 17.54 \\
+\midrule
+\multicolumn{2}{l}{\textbf{cscmax Average}} & & & 74.1 & 15.49 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+% SECTION 7: Discussion and Conclusion
+% ============================================================
+\section{Discussion and Conclusion}
+
+\subsection{Summary of Results}
+The Simulated Annealing algorithm was tested on 30 Demirkol benchmark instances across two parameter configurations. The improved configuration ($\alpha = 0.97$, $L = 500$) consistently outperformed the baseline ($\alpha = 0.95$, $L = 200$), producing lower makespans with reduced standard deviation across runs. The calibration of the initial temperature $T_0$ to achieve an initial acceptance probability of approximately 0.8 ensured that the algorithm began with sufficient exploration capability for each instance.
+
+Across all 30 instances, performance varied by instance category: the 20-job instances produced the lowest makespans with an average standard deviation of 44.7, the 30-job rcmax instances averaged a standard deviation of 58.1, and the 30-job cscmax instances averaged 74.1. This pattern indicates that the algorithm performs well on smaller and moderately-sized instances but faces increasing difficulty as the problem grows in both size and structural complexity. The cscmax instances proved notably harder than their rcmax counterparts of the same size, suggesting that the processing time distributions in cscmax instances create more challenging bottleneck patterns for the SA search.
+
+The coefficient of variation (CV) across all instances remained below 3.2\%, indicating that the algorithm is robust and produces consistent results across independent runs. The lowest CV values were observed on the 30$\times$20 rcmax instances (e.g., Dmu16 with CV $= 0.68\%$), suggesting that the larger neighborhood in these instances provides more stable search trajectories.
+
+\subsection{Parameter Sensitivity}
+The comparison between the baseline and improved configurations demonstrates the sensitivity of SA to the cooling schedule parameters. The slower cooling rate ($\alpha = 0.97$ vs.\ 0.95) and larger Markov chain length ($L = 500$ vs.\ 200) increased the total number of function evaluations from approximately 43,000 to 182,000, providing the algorithm with more opportunities to escape local optima. This resulted in improved solution quality at the cost of increased computation time.
+
+The calibrated $T_0$ values varied across instances (e.g., $T_0 \approx 643$ for the example instance), confirming that the automatic calibration procedure adapts appropriately to the scale of each problem.
+
+\subsection{Comparison with Other Metaheuristics}
+Tables~\ref{tab:obj_setA}--\ref{tab:obj_setC} present the objective values (Mean, Best, and Std Dev) obtained by all three algorithms on each instance set. Tables~\ref{tab:time_setA}--\ref{tab:time_setC} report the corresponding computation times.
+
+% TABLE 4: SET A — OBJECTIVE VALUES
+\begin{table}[H]
+\centering
+\caption{Objective values for Set A: 20-Job Instances (rcmax).}
+\label{tab:obj_setA}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lc|ccc|ccc|ccc|c}
+\hline
+\multirow{2}{*}{\textbf{Instance}} & \multirow{2}{*}{\textbf{Size}}
+& \multicolumn{3}{c|}{\textbf{Tabu Search}}
+& \multicolumn{3}{c|}{\textbf{Genetic Algorithm}}
+& \multicolumn{3}{c|}{\textbf{Simulated Annealing}}
+& \multirow{2}{*}{\textbf{Best}} \\
+& & Mean & Best & Std & Mean & Best & Std & Mean & Best & Std & \\
+\hline
+Dmu01 & 20$\times$15 & 2993.4 & 2870 & 88.71  & 3268.0 & 3149 & 95.44  & 2793.6 & 2745 & 28.6  & \textbf{SA} \\
+Dmu02 & 20$\times$15 & 3150.2 & 3040 & 74.34  & 3053.8 & 2939 & 91.78  & 2915.2 & 2842 & 45.9  & \textbf{SA} \\
+Dmu03 & 20$\times$15 & 3143.8 & 3023 & 84.54  & 3119.8 & 3082 & 30.24  & 2940.6 & 2899 & 56.2  & \textbf{SA} \\
+Dmu04 & 20$\times$15 & 3135.8 & 2988 & 90.67  & 3095.8 & 3036 & 66.84  & 2887.0 & 2849 & 56.1  & \textbf{SA} \\
+Dmu05 & 20$\times$15 & 3226.4 & 3178 & 47.69  & 3154.4 & 3091 & 62.42  & 2961.8 & 2902 & 60.5  & \textbf{SA} \\
+Dmu06 & 20$\times$20 & 3905.0 & 3843 & 83.52  & 3770.2 & 3671 & 56.61  & 3519.6 & 3463 & 37.2  & \textbf{SA} \\
+Dmu07 & 20$\times$20 & 3585.6 & 3518 & 69.43  & 3718.6 & 3635 & 51.14  & 3295.6 & 3265 & 39.2  & \textbf{SA} \\
+Dmu08 & 20$\times$20 & 3784.8 & 3654 & 105.66 & 3595.4 & 3494 & 56.01  & 3419.2 & 3385 & 27.3  & \textbf{SA} \\
+Dmu09 & 20$\times$20 & 3677.6 & 3549 & 128.83 & 3501.0 & 3383 & 107.88 & 3369.0 & 3328 & 41.4  & \textbf{SA} \\
+Dmu10 & 20$\times$20 & 3533.2 & 3455 & 57.70  & 3666.4 & 3577 & 70.19  & 3226.4 & 3147 & 54.6  & \textbf{SA} \\
+\hline
+\end{tabular}}
+\end{table}
+
+% TABLE 5: SET B — OBJECTIVE VALUES
+\begin{table}[H]
+\centering
+\caption{Objective values for Set B: 30-Job Instances (rcmax).}
+\label{tab:obj_setB}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lc|ccc|ccc|ccc|c}
+\hline
+\multirow{2}{*}{\textbf{Instance}} & \multirow{2}{*}{\textbf{Size}}
+& \multicolumn{3}{c|}{\textbf{Tabu Search}}
+& \multicolumn{3}{c|}{\textbf{Genetic Algorithm}}
+& \multicolumn{3}{c|}{\textbf{Simulated Annealing}}
+& \multirow{2}{*}{\textbf{Best}} \\
+& & Mean & Best & Std & Mean & Best & Std & Mean & Best & Std & \\
+\hline
+Dmu11 & 30$\times$15 & 4303.2 & 4108 & 193.15 & 3977.6 & 3902 & 45.82  & 3815.2 & 3750 & 80.6  & \textbf{SA} \\
+Dmu12 & 30$\times$15 & 4317.2 & 4215 & 92.03  & 3944.0 & 3821 & 85.15  & 3922.8 & 3847 & 84.6  & \textbf{GA} \\
+Dmu13 & 30$\times$15 & 4544.0 & 4387 & 104.01 & 4463.4 & 4372 & 54.07  & 4119.6 & 4010 & 63.5  & \textbf{SA} \\
+Dmu14 & 30$\times$15 & 4023.8 & 3819 & 136.00 & 4158.2 & 4089 & 55.64  & 3697.6 & 3636 & 58.8  & \textbf{SA} \\
+Dmu15 & 30$\times$15 & 3908.8 & 3712 & 171.80 & 4307.4 & 4171 & 135.90 & 3557.0 & 3517 & 34.3  & \textbf{SA} \\
+Dmu16 & 30$\times$20 & 4519.2 & 4359 & 98.51  & 4668.4 & 4508 & 134.95 & 4155.6 & 4113 & 28.2  & \textbf{SA} \\
+Dmu17 & 30$\times$20 & 4793.0 & 4636 & 132.03 & 4814.0 & 4721 & 108.26 & 4300.2 & 4236 & 40.2  & \textbf{SA} \\
+Dmu18 & 30$\times$20 & 4569.2 & 4471 & 135.88 & 4658.2 & 4590 & 54.57  & 4284.4 & 4206 & 80.0  & \textbf{SA} \\
+Dmu19 & 30$\times$20 & 4671.6 & 4493 & 157.65 & 4718.8 & 4661 & 45.77  & 4259.4 & 4188 & 43.1  & \textbf{SA} \\
+Dmu20 & 30$\times$20 & 4558.2 & 4344 & 193.40 & 4592.6 & 4479 & 81.66  & 4128.0 & 4050 & 67.7  & \textbf{SA} \\
+\hline
+\end{tabular}}
+\end{table}
+
+% TABLE 6: SET C — OBJECTIVE VALUES
+\begin{table}[H]
+\centering
+\caption{Objective values for Set C: 30-Job Instances (cscmax).}
+\label{tab:obj_setC}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lc|ccc|ccc|ccc|c}
+\hline
+\multirow{2}{*}{\textbf{Instance}} & \multirow{2}{*}{\textbf{Size}}
+& \multicolumn{3}{c|}{\textbf{Tabu Search}}
+& \multicolumn{3}{c|}{\textbf{Genetic Algorithm}}
+& \multicolumn{3}{c|}{\textbf{Simulated Annealing}}
+& \multirow{2}{*}{\textbf{Best}} \\
+& & Mean & Best & Std & Mean & Best & Std & Mean & Best & Std & \\
+\hline
+Dmu51 & 30$\times$15 & 5502.2 & 5309 & 181.08 & 5611.4 & 5519 & 49.54  & 5151.4 & 5083 & 103.1 & \textbf{SA} \\
+Dmu52 & 30$\times$15 & 5685.0 & 5432 & 188.02 & 5864.8 & 5744 & 81.07  & 5175.8 & 5124 & 34.0  & \textbf{SA} \\
+Dmu53 & 30$\times$15 & 5791.4 & 5697 & 73.08  & 5650.0 & 5556 & 54.03  & 5342.2 & 5278 & 53.7  & \textbf{SA} \\
+Dmu54 & 30$\times$15 & 5884.4 & 5695 & 140.55 & 5801.4 & 5572 & 153.79 & 5252.2 & 5180 & 61.7  & \textbf{SA} \\
+Dmu55 & 30$\times$15 & 5664.0 & 5562 & 103.07 & 6057.2 & 6022 & 31.89  & 5108.6 & 5045 & 39.5  & \textbf{SA} \\
+Dmu56 & 30$\times$20 & 6496.8 & 6379 & 91.99  & 6496.0 & 6250 & 203.75 & 6016.8 & 5900 & 104.0 & \textbf{SA} \\
+Dmu57 & 30$\times$20 & 6141.4 & 5950 & 132.08 & 6384.4 & 6311 & 92.94  & 5709.2 & 5638 & 68.5  & \textbf{SA} \\
+Dmu58 & 30$\times$20 & 6182.6 & 6055 & 95.51  & 6378.0 & 6189 & 109.78 & 5803.0 & 5676 & 93.9  & \textbf{SA} \\
+Dmu59 & 30$\times$20 & 6259.8 & 5906 & 281.72 & 6421.4 & 6159 & 149.13 & 5630.2 & 5514 & 91.1  & \textbf{SA} \\
+Dmu60 & 30$\times$20 & 6321.8 & 6227 & 85.15  & 6631.6 & 6450 & 184.36 & 5841.4 & 5730 & 91.6  & \textbf{SA} \\
+\hline
+\end{tabular}}
+\end{table}
+
+% TABLE 7: SET A — COMPUTATION TIMES
+\begin{table}[H]
+\centering
+\caption{Computation times (s) for Set A: 20-Job Instances (rcmax).}
+\label{tab:time_setA}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lc|cc|cc|cc}
+\hline
+\multirow{2}{*}{\textbf{Instance}} & \multirow{2}{*}{\textbf{Size}}
+& \multicolumn{2}{c|}{\textbf{Tabu Search}}
+& \multicolumn{2}{c|}{\textbf{Genetic Algorithm}}
+& \multicolumn{2}{c}{\textbf{Simulated Annealing}} \\
+& & Mean Time & Best Time & Mean Time & Best Time & Mean Time & Best Time \\
+\hline
+Dmu01 & 20$\times$15 & 2.49 & 1.53 & 0.99 & 0.99 & 8.96  & 8.91  \\
+Dmu02 & 20$\times$15 & 1.99 & 1.58 & 1.00 & 0.99 & 9.44  & 9.01  \\
+Dmu03 & 20$\times$15 & 2.31 & 1.67 & 1.00 & 0.99 & 8.61  & 8.53  \\
+Dmu04 & 20$\times$15 & 1.88 & 1.24 & 1.00 & 1.00 & 8.68  & 8.61  \\
+Dmu05 & 20$\times$15 & 2.07 & 1.29 & 1.00 & 1.00 & 9.04  & 8.97  \\
+Dmu06 & 20$\times$20 & 2.65 & 1.75 & 1.32 & 1.31 & 11.89 & 11.80 \\
+Dmu07 & 20$\times$20 & 2.84 & 1.46 & 1.38 & 1.31 & 11.94 & 11.86 \\
+Dmu08 & 20$\times$20 & 2.62 & 2.21 & 1.31 & 1.30 & 12.04 & 11.91 \\
+Dmu09 & 20$\times$20 & 3.54 & 2.60 & 1.31 & 1.31 & 12.06 & 11.96 \\
+Dmu10 & 20$\times$20 & 3.24 & 2.15 & 1.39 & 1.38 & 11.87 & 11.78 \\
+\hline
+\end{tabular}}
+\end{table}
+
+% TABLE 8: SET B — COMPUTATION TIMES
+\begin{table}[H]
+\centering
+\caption{Computation times (s) for Set B: 30-Job Instances (rcmax).}
+\label{tab:time_setB}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lc|cc|cc|cc}
+\hline
+\multirow{2}{*}{\textbf{Instance}} & \multirow{2}{*}{\textbf{Size}}
+& \multicolumn{2}{c|}{\textbf{Tabu Search}}
+& \multicolumn{2}{c|}{\textbf{Genetic Algorithm}}
+& \multicolumn{2}{c}{\textbf{Simulated Annealing}} \\
+& & Mean Time & Best Time & Mean Time & Best Time & Mean Time & Best Time \\
+\hline
+Dmu11 & 30$\times$15 & 2.84 & 2.20 & 1.58 & 1.57 & 12.93 & 12.86 \\
+Dmu12 & 30$\times$15 & 3.82 & 2.41 & 1.59 & 1.57 & 12.87 & 12.73 \\
+Dmu13 & 30$\times$15 & 3.17 & 2.12 & 1.61 & 1.59 & 12.83 & 12.77 \\
+Dmu14 & 30$\times$15 & 3.21 & 1.54 & 1.59 & 1.58 & 13.04 & 12.93 \\
+Dmu15 & 30$\times$15 & 4.90 & 2.57 & 1.59 & 1.57 & 13.01 & 12.97 \\
+Dmu16 & 30$\times$20 & 7.23 & 4.24 & 2.06 & 2.02 & 17.68 & 17.56 \\
+Dmu17 & 30$\times$20 & 6.52 & 4.78 & 2.08 & 2.06 & 17.72 & 17.67 \\
+Dmu18 & 30$\times$20 & 6.74 & 3.87 & 2.08 & 2.06 & 17.52 & 17.48 \\
+Dmu19 & 30$\times$20 & 5.12 & 3.53 & 2.07 & 2.06 & 17.66 & 17.59 \\
+Dmu20 & 30$\times$20 & 5.67 & 3.39 & 2.09 & 2.07 & 17.00 & 16.87 \\
+\hline
+\end{tabular}}
+\end{table}
+
+% TABLE 9: SET C — COMPUTATION TIMES
+\begin{table}[H]
+\centering
+\caption{Computation times (s) for Set C: 30-Job Instances (cscmax).}
+\label{tab:time_setC}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lc|cc|cc|cc}
+\hline
+\multirow{2}{*}{\textbf{Instance}} & \multirow{2}{*}{\textbf{Size}}
+& \multicolumn{2}{c|}{\textbf{Tabu Search}}
+& \multicolumn{2}{c|}{\textbf{Genetic Algorithm}}
+& \multicolumn{2}{c}{\textbf{Simulated Annealing}} \\
+& & Mean Time & Best Time & Mean Time & Best Time & Mean Time & Best Time \\
+\hline
+Dmu51 & 30$\times$15 & 5.15 & 3.47 & 1.50 & 1.48 & 13.12 & 12.99 \\
+Dmu52 & 30$\times$15 & 3.49 & 2.75 & 1.49 & 1.48 & 13.53 & 13.26 \\
+Dmu53 & 30$\times$15 & 5.09 & 2.75 & 1.49 & 1.48 & 12.94 & 12.80 \\
+Dmu54 & 30$\times$15 & 4.44 & 1.92 & 1.49 & 1.48 & 13.12 & 13.05 \\
+Dmu55 & 30$\times$15 & 3.58 & 2.52 & 1.50 & 1.47 & 12.77 & 12.71 \\
+Dmu56 & 30$\times$20 & 6.96 & 4.92 & 1.97 & 1.96 & 17.87 & 17.77 \\
+Dmu57 & 30$\times$20 & 8.33 & 5.74 & 1.97 & 1.95 & 18.18 & 17.96 \\
+Dmu58 & 30$\times$20 & 9.05 & 8.60 & 1.98 & 1.96 & 17.80 & 17.55 \\
+Dmu59 & 30$\times$20 & 9.09 & 6.98 & 1.98 & 1.96 & 17.94 & 17.32 \\
+Dmu60 & 30$\times$20 & 7.03 & 4.41 & 1.97 & 1.95 & 17.65 & 17.54 \\
+\hline
+\end{tabular}}
+\end{table}
+
+
+Simulated Annealing achieved the best makespan on 29 out of 30 instances, with the Genetic Algorithm winning on Dmu12. SA also exhibited the lowest standard deviation on the majority of instances, indicating greater robustness across independent runs. In terms of computation time, SA required 9--18 seconds per run compared to 2--9 seconds for TS and 1--2 seconds for GA. However, this difference reflects implementation overhead rather than search effort: all three algorithms performed a comparable number of function evaluations (approximately 180,000--200,000 per run).
+
+The strong performance of SA can be attributed to two factors. First, the automatic calibration of the initial temperature ($T_0$) ensured that the algorithm began with an appropriate level of exploration for each instance. Second, the Metropolis acceptance criterion allowed controlled acceptance of worse solutions throughout the entire search, whereas TS's early stopping rule (100 non-improving iterations) frequently terminated the search before exhausting the computational budget.
+
+To verify that the observed performance differences are statistically significant, a Friedman test was conducted on the Best Objective values across all 30 instances. The test yielded $\chi^2 = 42.87$ with $p < 0.001$, rejecting the null hypothesis of equal performance at $\alpha = 0.05$. Holm post-hoc comparisons confirmed that SA (average rank 1.03) performs significantly better than both TS (average rank 2.37, $p < 0.001$) and GA (average rank 2.60, $p < 0.001$).
+
+\subsection{Limitations}
+The proposed SA implementation uses a simple random swap neighborhood, which generates one neighbor per inner iteration. More sophisticated neighborhood operators, such as critical-path-based moves, could significantly improve solution quality. Additionally, the algorithm does not incorporate any problem-specific knowledge such as dispatching rules for initialization, which could provide a better starting point than a random solution.
+
+\subsection{Conclusion}
+This study applied Simulated Annealing to the Job Shop Scheduling Problem using 30 Demirkol benchmark instances of varying size and type. The algorithm successfully produced valid schedules for all instances, and achieved a 44.8\% improvement over the initial random solution on the Phase 2 example instance. The parameter sensitivity analysis demonstrated that slower cooling ($\alpha = 0.97$) and longer Markov chains ($L = 500$) meaningfully improve solution quality while maintaining computational times under 18 seconds per run. The automatic calibration of the initial temperature proved effective at adapting the algorithm to different instance scales, with calibrated $T_0$ values ranging from 437 to 946 across the 30 instances.
+
+In the team comparison, SA achieved the best makespan on 29 out of 30 instances, and a Friedman test confirmed that SA (average rank 1.03) is statistically significantly better than both TS (average rank 2.37) and GA (average rank 2.60) at $\alpha = 0.05$ with Holm post-hoc correction. While SA does not match the performance of state-of-the-art JSSP-specific algorithms, it provides a simple, general-purpose approach with very low implementation complexity and consistent behavior, demonstrating that principled parameter calibration can make a basic metaheuristic highly competitive.
+
+\bibliography{References}
+
+\end{document}
